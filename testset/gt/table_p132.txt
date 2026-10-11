@@ -1,0 +1,71 @@
+POINTS VALUES
+
+You can use this section to determine the points (pts) value of each unit from your army. Each entry
+ lists the unit’s size (which may include a lower and upper limit) and the associated points value for that
+ size. You can learn more about using points to muster your army on pages 55-56 of the Core Rules.
+
+
+ Annihilation Barge                                                     Orikanthe Diviner
+ 1 model..................................115 pts   5 models................................ 20 pts    1 model................................... 80 pts
+                                 10 models.............................. 140 pts
+ C’tan Shard of the Deceiver                                                                                 I Overlord
+ 1 model..................................265 pts  1 Ghost Ark                       1 model.................. ................ 85 pts
+                                 1 model.................. ...............125 pts
+ C’tan Shard of the Nightbringer                                         Overlord with Translocation Shroud
+ 1 model..................................255 pts   Hexmark Destroyer                1 model................................... 85 pts
+                                 1 model................................... 20 pts
+ C’tan Shard of the Void Dragon                                      Plasmancer
+ 1 model..................................220 pts                                    1 model................................... 55 pts
+                                 1 model..................................210 pts
+ Canoptek Doomstalker                                           Psychomancer
+ 1 model..................................125 pts    Immortals                        1 model................................... 55 pts
+                                 5 models. ................................20 pts
+ Canoptek Reanimator              10 models.............................. 140 pts    Royal Warden
+ 1 model....................................25 pts                                    1 model................................... 45 pts
+                                  Imotekh the Stormlord
+1 Canoptek Scarab Swarms          1 model..................................110 pts  1 Skorpekh Destroyers
+ 3 model............................... ....40 pts                                    3 models......................... ...... 120 pts
+ 6 models............................. ....80 pts   1 Lokhust Destroyers               6 models......................... ...... 240 pts
+                                 1 model................................... 35 pts
+1 Canoptek Spyders                2 models................................. 20 pts   1 Skorpekh Lord
+ 1 model........................ .......... 25 pts   3 models................................100 pts   1 model..................... ............115 pts
+ 2 models....................... .........150 pts   6 models................................200 pts  iTechnomancer
+1 Canoptek Wraiths                1 Lokhust Heavy Destroyers         1 model....................... ............60 pts
+ 3 model........................ ......... 110 pts   1 model...................................45 pts
+                                                                       Tesseract Vault
+ 6 model........................ ......... 220 pts   2 models............................. ....90 pts
+                                                                  1 model..................................425 pts
+                                 3 models............................. ....135 pts
+ Catacomb Command Barge
+                                                              The Silent Kin
+ 1 model..................................155 pts   Lokhust Lord
+                                                                  3 models.                  .480 pts
+                                 1 model................................... 90 pts
+ Chronomancer
+                                                                 1 Tomb Blades
+ 1 model....................................50 pts   1 Lychguard
+                                                                  3 models..................................25 pts
+                                 5 models................. ............... 95 pts
+| Convergence of Dominion                                          6 models................................150 pts
+                                  10 models............... .............. 190 pts
+ 1 model.............................. .....60 pts
+                                                                   Transcendent C’tan
+ 2 models............................ ...120 pts    Monolith
+ 3 models............................ ...180 pts   1 model..................................400 pts   1 model..................................225 pts
+ Cryptothralls                    1 Necron Warriors                   Trazyn the Infinite
+ 2 models..................................40 pts   10 models..............................100 pts   1 model................................... 25 pts
+                                  20 models..............................200 pts  1 Triarch Praetorians1 Deathmarks
+ 5 models.................. ...............65 pts                                    5 models....................... ........ 140 pts
+ 10 models................ ............. 130 pts   1 model..................................145 pts   10 models............................. 280 pts
+ Doom Scythe                    1 Obelisk                             Triarch Stalker
+ 1 model..................................230 pts   1 model................ .................3 50 pts   1 model..................................160 pts
+
+ Doomsday Ark                   1 Ophydian Destroyers  ________1
+ 1 model..................................185 pts   3 models......................... ...... 110 pts
+                                  6 models......................... ...... 220 pts
+
+
+
+
+
+ RULES | POINTS VALUES

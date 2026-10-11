@@ -1,0 +1,25 @@
+SET UP
+
+You will no doubt have noticed by now that Boarding Action
+battles use unique terrain to lay out the claustrophobic corridors
+of the spacecraft where your fights will take place. This terrain
+is highly modular and can be clipped together in a large
+number of different configurations. If you are playing one of the
+Boarding Action missions presented in this book, the mission
+map will also show you where to set up the terrain features,
+along with the positions of each Hatchway.                                                                                             u:
+                                                                       o
+                                                                     >
+Each piece of terrain on the mission map will be coded, allowing                                                                        :u
+you to quickly identify which piece it corresponds to, and where                                   E
+that piece should be positioned on the game boards. You can                                            z
+find a key denoting the code for each piece on pages 68 and 69.                                                                        (n
+We also recommend painting or writing the codes for each wall                                        >
+                                                                       n
+piece onto the underside of that piece — this will allow you to                                                                           2'
+identify them quickly when setting up your game.                                              o
+                                                              mz    V
+When placing these terrain pieces on the game board, the Wall
+sections line up with the lines between the Zones on the board
+and any Pillars line up with the smaller squares in the corner of
+each Zone, as shown below.

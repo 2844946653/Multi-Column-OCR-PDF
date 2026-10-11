@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>战锤 PDF 提取工具</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>⚙ 战锤 PDF 提取工具</h1>
+  <nav>
+    <button class="tab active" data-tab="extract">提取</button>
+    <button class="tab" data-tab="books">结果</button>
+    <button class="tab" data-tab="review">人工复核</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 提取页 -->
+  <section id="tab-extract" class="tab-panel active">
+    <div class="card" id="drop-zone">
+      <h2>输入文件</h2>
+      <div class="row">
+        <button id="btn-pick-files" class="primary">选择 PDF 文件…</button>
+        <button id="btn-pick-dir">或选择文件夹</button>
+        <button id="btn-clear-files">清空</button>
+      </div>
+      <div id="file-list" class="file-list">
+        <div class="drop-hint">也可以把 PDF 文件直接拖进这个窗口</div>
+      </div>
+      <h2>页码范围（可选）</h2>
+      <div class="row">
+        <label>从第 <input id="page-from" type="number" min="1" placeholder="1"></label>
+        <label>页到第 <input id="page-to" type="number" min="1" placeholder="末页"></label>
+        <span class="hint">页（留空 = 全部；中断后重跑会自动跳过已完成页）</span>
+      </div>
+      <h2>输出文件夹</h2>
+      <div class="row">
+        <input id="output-dir" readonly placeholder="输出目录（默认 ./output）">
+        <button id="btn-pick-output">浏览…</button>
+      </div>
+      <div class="row">
+        <label><input type="radio" name="speed" value="fast" checked> 快速模式（约 2-3 倍速，准确率略降）</label>
+        <label><input type="radio" name="speed" value="quality"> 质量模式（慢但准）</label>
+        <label>线程数
+          <select id="workers">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="4" selected>4</option>
+            <option value="6">6</option>
+            <option value="8">8</option>
+          </select>
+        </label>
+        <span class="hint">（质量模式每线程约 1GB 内存，内存紧张请减线程）</span>
+      </div>
+      <div class="row actions">
+        <button id="btn-extract" class="primary">开始提取</button>
+        <label class="force-label">
+          <input type="checkbox" id="force-reprocess">
+          强制重新处理（忽略已完成页）
+        </label>
+        <span id="file-count" class="hint"></span>
+      </div>
+      <div id="progress-wrap" hidden>
+        <div class="progress-label" id="progress-label">…</div>
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+      </div>
+      <div id="extract-error" class="error" hidden></div>
+      <p class="hint">
+        可多选，多个 PDF 会逐个处理，每本书输出到独立的子文件夹（互不合并）。
+        数字版 PDF（有文本层）直接提取 100% 准确文本；扫描件走版面分析 + OCR。
+        低置信度/花体内容绝不猜测，截图留待「人工复核」页处理。
+      </p>
+    </div>
+  </section>
+
+  <!-- 结果页 -->
+  <section id="tab-books" class="tab-panel">
+    <div class="split">
+      <div class="card list-panel">
+        <h2>已处理的书</h2>
+        <div id="book-list" class="book-list"></div>
+      </div>
+      <div class="card detail-panel">
+        <div id="book-detail">
+          <p class="hint">左侧选择一本书查看提取结果。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 复核页 -->
+  <section id="tab-review" class="tab-panel">
+    <div class="card">
+      <div class="row">
+        <select id="review-book"></select>
+        <button id="btn-review-save" class="primary">保存全部校正</button>
+        <button id="btn-review-export">导出校正版</button>
+        <span id="review-export-result" class="ok"></span>
+      </div>
+      <div id="review-list"></div>
+      <p id="review-empty" class="hint">选择一本书，待人工复核的截图会显示在这里。</p>
+    </div>
+  </section>
+</main>
+
+<script>
+/* 内联拖放接受：必须在页面解析时立即注册 preventDefault，
+   否则 WebView2 对文件拖放显示红色禁止圈。 */
+document.addEventListener('dragover', function (e) { e.preventDefault(); });
+document.addEventListener('drop', function (e) {
+  e.preventDefault();
+  /* 直接把 FileList 转成数组发给 Python（绕开 pywebview api.js 的桥，
+     它可能没做 FileList->Array 转换导致收不到对象） */
+  try {
+    var files = Array.prototype.slice.call(e.dataTransfer.files || []);
+    if (files.length && window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessageWithAdditionalObjects(
+        'FilesDropped', files);
+    }
+  } catch (err) { /* 忽略，Python 侧另有 pywebview 自带桥兜底 */ }
+});
+window.inputFiles = window.inputFiles || [];
+window.addFiles = function (paths) {
+  if (window.__appAddFiles) { window.__appAddFiles(paths); return; }
+  // 兜底：app.js 尚未就绪时先入队，init 时会渲染
+  paths.forEach(function (p) {
+    if (p && window.inputFiles.indexOf(p) < 0) window.inputFiles.push(p);
+  });
+};
+</script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,357 @@
+{
+  "created": "2026-10-08",
+  "entries": [
+    {
+      "id": "scan-000",
+      "source": "厄兆方舟：瓦什托尔.pdf",
+      "page": 0,
+      "category": "text+dense",
+      "path": "samples/02_scan/vashtorr_p000.png",
+      "tests": [
+        "300dpi渲染",
+        "版面分析",
+        "OCR",
+        "置信度分级"
+      ],
+      "note": "纯扫描件，无文本层"
+    },
+    {
+      "id": "scan-001",
+      "source": "厄兆方舟：瓦什托尔.pdf",
+      "page": 1,
+      "category": "art",
+      "path": "samples/02_scan/vashtorr_p001.png",
+      "tests": [
+        "300dpi渲染",
+        "版面分析",
+        "OCR",
+        "置信度分级"
+      ],
+      "note": "纯扫描件，无文本层"
+    },
+    {
+      "id": "scan-002",
+      "source": "厄兆方舟：瓦什托尔.pdf",
+      "page": 2,
+      "category": "text",
+      "path": "samples/02_scan/vashtorr_p002.png",
+      "tests": [
+        "300dpi渲染",
+        "版面分析",
+        "OCR",
+        "置信度分级"
+      ],
+      "note": "纯扫描件，无文本层"
+    },
+    {
+      "id": "scan-004",
+      "source": "厄兆方舟：瓦什托尔.pdf",
+      "page": 4,
+      "category": "art",
+      "path": "samples/02_scan/vashtorr_p004.png",
+      "tests": [
+        "300dpi渲染",
+        "版面分析",
+        "OCR",
+        "置信度分级"
+      ],
+      "note": "纯扫描件，无文本层"
+    },
+    {
+      "id": "scan-005",
+      "source": "厄兆方舟：瓦什托尔.pdf",
+      "page": 5,
+      "category": "text",
+      "path": "samples/02_scan/vashtorr_p005.png",
+      "tests": [
+        "300dpi渲染",
+        "版面分析",
+        "OCR",
+        "置信度分级"
+      ],
+      "note": "纯扫描件，无文本层"
+    },
+    {
+      "id": "scan-008",
+      "source": "厄兆方舟：瓦什托尔.pdf",
+      "page": 8,
+      "category": "text",
+      "path": "samples/02_scan/vashtorr_p008.png",
+      "tests": [
+        "300dpi渲染",
+        "版面分析",
+        "OCR",
+        "置信度分级"
+      ],
+      "note": "纯扫描件，无文本层"
+    },
+    {
+      "id": "scan-012",
+      "source": "厄兆方舟：瓦什托尔.pdf",
+      "page": 12,
+      "category": "two-col",
+      "path": "samples/02_scan/vashtorr_p012.png",
+      "tests": [
+        "300dpi渲染",
+        "版面分析",
+        "OCR",
+        "置信度分级"
+      ],
+      "note": "纯扫描件，无文本层"
+    },
+    {
+      "id": "scan-020",
+      "source": "厄兆方舟：瓦什托尔.pdf",
+      "page": 20,
+      "category": "two-col",
+      "path": "samples/02_scan/vashtorr_p020.png",
+      "tests": [
+        "300dpi渲染",
+        "版面分析",
+        "OCR",
+        "置信度分级"
+      ],
+      "note": "纯扫描件，无文本层"
+    },
+    {
+      "id": "story-000",
+      "source": "厄兆方舟：阿巴顿（剧情部分）.pdf",
+      "page": 0,
+      "category": "art",
+      "path": "sources/01_story_pages.pdf (内页0)",
+      "gt": "gt/story_p000.txt",
+      "tests": [
+        "文本层探测",
+        "直取",
+        "阅读顺序"
+      ],
+      "note": "数字版有文本层, chars=33, blocks=2"
+    },
+    {
+      "id": "story-002",
+      "source": "厄兆方舟：阿巴顿（剧情部分）.pdf",
+      "page": 2,
+      "category": "text",
+      "path": "sources/01_story_pages.pdf (内页1)",
+      "gt": "gt/story_p002.txt",
+      "tests": [
+        "文本层探测",
+        "直取",
+        "阅读顺序"
+      ],
+      "note": "数字版有文本层, chars=2861, blocks=18"
+    },
+    {
+      "id": "story-028",
+      "source": "厄兆方舟：阿巴顿（剧情部分）.pdf",
+      "page": 28,
+      "category": "text",
+      "path": "sources/01_story_pages.pdf (内页2)",
+      "gt": "gt/story_p028.txt",
+      "tests": [
+        "文本层探测",
+        "直取",
+        "阅读顺序"
+      ],
+      "note": "数字版有文本层, chars=3225, blocks=23"
+    },
+    {
+      "id": "story-036",
+      "source": "厄兆方舟：阿巴顿（剧情部分）.pdf",
+      "page": 36,
+      "category": "two-col",
+      "path": "sources/01_story_pages.pdf (内页3)",
+      "gt": "gt/story_p036.txt",
+      "tests": [
+        "文本层探测",
+        "直取",
+        "阅读顺序"
+      ],
+      "note": "数字版有文本层, chars=2030, blocks=16"
+    },
+    {
+      "id": "story-040",
+      "source": "厄兆方舟：阿巴顿（剧情部分）.pdf",
+      "page": 40,
+      "category": "text",
+      "path": "sources/01_story_pages.pdf (内页4)",
+      "gt": "gt/story_p040.txt",
+      "tests": [
+        "文本层探测",
+        "直取",
+        "阅读顺序"
+      ],
+      "note": "数字版有文本层, chars=1715, blocks=13"
+    },
+    {
+      "id": "story-055",
+      "source": "厄兆方舟：阿巴顿（剧情部分）.pdf",
+      "page": 55,
+      "category": "text",
+      "path": "sources/01_story_pages.pdf (内页5)",
+      "gt": "gt/story_p055.txt",
+      "tests": [
+        "文本层探测",
+        "直取",
+        "阅读顺序"
+      ],
+      "note": "数字版有文本层, chars=1198, blocks=6"
+    },
+    {
+      "id": "table-131",
+      "source": "太空死灵10版圣典.pdf",
+      "page": 131,
+      "category": "text",
+      "path": "samples/03_tables/necron_p131.png",
+      "gt": "gt/table_p131.txt",
+      "tests": [
+        "表格结构",
+        "文本层表格"
+      ],
+      "note": "数字版, 线框得分=0, words=368"
+    },
+    {
+      "id": "table-132",
+      "source": "太空死灵10版圣典.pdf",
+      "page": 132,
+      "category": "table",
+      "path": "samples/03_tables/necron_p132.png",
+      "gt": "gt/table_p132.txt",
+      "tests": [
+        "表格结构",
+        "文本层表格"
+      ],
+      "note": "数字版, 线框得分=70, words=430"
+    },
+    {
+      "id": "table-133",
+      "source": "太空死灵10版圣典.pdf",
+      "page": 133,
+      "category": "text",
+      "path": "samples/03_tables/necron_p133.png",
+      "gt": "gt/table_p133.txt",
+      "tests": [
+        "表格结构",
+        "文本层表格"
+      ],
+      "note": "数字版, 线框得分=0, words=141"
+    },
+    {
+      "id": "table-134",
+      "source": "太空死灵10版圣典.pdf",
+      "page": 134,
+      "category": "table",
+      "path": "samples/03_tables/necron_p134.png",
+      "gt": "gt/table_p134.txt",
+      "tests": [
+        "表格结构",
+        "文本层表格"
+      ],
+      "note": "数字版, 线框得分=138, words=253"
+    },
+    {
+      "id": "canvas-010",
+      "source": "圣血天使9版圣典.pdf",
+      "page": 10,
+      "category": "canvas",
+      "path": "samples/06_canvas/codex_p010.png",
+      "tests": [
+        "大画布分栏",
+        "尺度无关栏检测"
+      ],
+      "note": "6000x7921 大画布页（两页内容拼一张），测栏检测尺度无关性"
+    },
+    {
+      "id": "mag-073",
+      "source": "White Dwarf Magazine 487.pdf",
+      "page": 73,
+      "category": "magazine",
+      "path": "samples/04_magazine/wd487_p073.png",
+      "gt": "gt/mag_p073.txt",
+      "tests": [
+        "侧边栏",
+        "多栏",
+        "图片注释"
+      ],
+      "note": "数字版, 文本块数=70(全书靠前)"
+    },
+    {
+      "id": "mag-096",
+      "source": "White Dwarf Magazine 487.pdf",
+      "page": 96,
+      "category": "magazine",
+      "path": "samples/04_magazine/wd487_p096.png",
+      "gt": "gt/mag_p096.txt",
+      "tests": [
+        "侧边栏",
+        "多栏",
+        "图片注释"
+      ],
+      "note": "数字版, 文本块数=101(全书靠前)"
+    },
+    {
+      "id": "mag-112",
+      "source": "White Dwarf Magazine 487.pdf",
+      "page": 112,
+      "category": "magazine",
+      "path": "samples/04_magazine/wd487_p112.png",
+      "gt": "gt/mag_p112.txt",
+      "tests": [
+        "侧边栏",
+        "多栏",
+        "图片注释"
+      ],
+      "note": "数字版, 文本块数=119(全书靠前)"
+    },
+    {
+      "id": "mag-137",
+      "source": "White Dwarf Magazine 487.pdf",
+      "page": 137,
+      "category": "magazine",
+      "path": "samples/04_magazine/wd487_p137.png",
+      "gt": "gt/mag_p137.txt",
+      "tests": [
+        "侧边栏",
+        "多栏",
+        "图片注释"
+      ],
+      "note": "数字版, 文本块数=92(全书靠前)"
+    },
+    {
+      "id": "img-1",
+      "source": "厄兆方舟：阿巴顿（剧情部分）拆分图",
+      "page": "1.jpg",
+      "category": "art",
+      "path": "samples/05_image_input/plot_01_title.png",
+      "tests": [
+        "图片路径输入",
+        "格式探测"
+      ],
+      "note": "标题艺术页 (原文件为WebP伪装.jpg, 已转真PNG)"
+    },
+    {
+      "id": "img-5",
+      "source": "厄兆方舟：阿巴顿（剧情部分）拆分图",
+      "page": "5.jpg",
+      "category": "art",
+      "path": "samples/05_image_input/plot_05_darkart.png",
+      "tests": [
+        "图片路径输入",
+        "格式探测"
+      ],
+      "note": "满幅暗色插图 (原文件为WebP伪装.jpg, 已转真PNG)"
+    },
+    {
+      "id": "img-15",
+      "source": "厄兆方舟：阿巴顿（剧情部分）拆分图",
+      "page": "15.jpg",
+      "category": "two-col",
+      "path": "samples/05_image_input/plot_15_twocol.png",
+      "tests": [
+        "图片路径输入",
+        "格式探测"
+      ],
+      "note": "双栏正文 (原文件为WebP伪装.jpg, 已转真PNG)"
+    }
+  ]
+}

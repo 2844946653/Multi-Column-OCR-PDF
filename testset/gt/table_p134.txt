@@ -1,0 +1,83 @@
+NECRONS
+NAME GENERATOR
+
+ If you wish to create a name for one of your Necrons, you can use the tables below, picking your
+ preferred components or rolling a D66 to determine a name. To roll a D66, roll two D6, one after the other
+ - the first represents tens and the second represents digits, giving you a result between 11 and 66.
+
+
+
+1 BEQUEATHED NAME D66 ]     MAGNIFICENTTITLE D66
+
+
+ Ankhep               11        the Unliving            11
+
+ Tamonhak             12        the Gilded             12
+
+ Eknotath              13        the Great              13
+
+ Khotek               14        the Exalted            14
+
+ Thanatar              15        the Loyal              15
+
+ Amhut                16        the Cruel              16
+
+ Karok                21        the Storm’s Eye        21
+
+ Zan-Tep              22        the Bloodied           22
+
+ Unakh                23        the Mighty             23
+
+ Khophec              24        the Relentless          24
+
+ Tzantath              25        the Unforgiving         25
+
+ Tahar                26        the Merciless           26
+
+ Imonekh              31        the Glorious           31
+
+ Trazat                32        the Devoted           32
+
+ Xeoptar               33        the Victorious          33
+
+ Hamane              34        the Destroyer          34
+
+ Obere                35        the Shrouded          35
+
+  Banatur               36        the Flenser            36
+
+ Ahmno               41        the Unstoppable        41
+
+ Kophesh              42        the Beheader          42
+
+ Teznet                43        the Impaler            43
+
+ Odakhar              44        the Magnificent         44
+
+ Kythok               45        the Illuminated         45
+
+ Eknothe              46        the Executioner         46
+
+ Anubitar              51        the Phaeron’s Hand     51
+
+ Anokh                52         of the Eternal Gaze     52
+
+ Thotep                53        the Gatekeeper         53
+
+ Anhutek               54        the All-seeing          54
+
+  Ikhatar                55        the All-knowing         55
+
+ Thotmek              56        the Starwalker          56
+
+ Ramatek              61        the Starkiller           61
+
+ Homanat              62        the Lifetaker           62
+
+ Taknophet             63        the Godbreaker         63
+
+ Makhret               64        the Torchbearer        64
+
+ Thekryst              65        the Stormbringer        65
+
+ Zanatek              66        the Colossus           66
