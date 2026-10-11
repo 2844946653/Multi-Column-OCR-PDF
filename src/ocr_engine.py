@@ -16,6 +16,7 @@
 5. 表格块行级提取（v1 平文本）；图片块不提取文本。
 """
 import os
+import threading
 
 from PIL import Image
 
@@ -30,29 +31,19 @@ _VERTICAL_RATIO = 1.8
 # 参与文本提取的版面类别
 _TEXT_CATEGORIES = {'text', 'title', 'span_title', 'side', 'caption_of'}
 
+# 全进程共享的抢救管线（server 模型约 1.5GB，各线程共享一份 + 锁串行，
+# 避免多线程各建一套把内存挤爆——实测 4 线程各建一套 ≈ 8GB 直接卡死）
+_shared_line_ocr = None
+_shared_line_ocr_lock = threading.Lock()
 
-class OcrEngine:
-    """OCR 引擎：版面 + OCR 一次推理，行级置信度分级与降级处理。
 
-    fast=True 使用轻量模型（约 2-3 倍速，准确率略降）。
-    """
-
-    def __init__(self, fast=False, intra_threads=None):
-        from layout_analyzer import LayoutAnalyzer
-        self.fast = fast
-        self.analyzer = LayoutAnalyzer(fast=fast, intra_threads=intra_threads)
-        self._line_ocr = None  # 竖排重识别的轻量 OCR（惰性创建）
-
-    def _get_line_ocr(self):
-        """独立的质量级检测+识别管线，用于单行/竖排重识别。
-
-        用 server 模型而非 mobile：重识别对象正是"mobile 判了低分的行"，
-        其中大量是暗扫描件的正常字——server 模型 + 图像增强能大幅挽回。
-        惰性创建（约 1GB，仅在有候选行时加载）。
-        """
-        if self._line_ocr is None:
+def _retry_ocr(path):
+    """在共享锁内用质量级管线识别一张图，返回 predict 结果列表。"""
+    global _shared_line_ocr
+    with _shared_line_ocr_lock:
+        if _shared_line_ocr is None:
             from paddleocr import PaddleOCR
-            self._line_ocr = PaddleOCR(
+            _shared_line_ocr = PaddleOCR(
                 text_detection_model_name='PP-OCRv5_server_det',
                 text_recognition_model_name='PP-OCRv5_server_rec',
                 use_doc_orientation_classify=False,
@@ -66,7 +57,19 @@ class OcrEngine:
                 text_recognition_batch_size=8,
                 engine='onnxruntime',
             )
-        return self._line_ocr
+        return _shared_line_ocr.predict(path)
+
+
+class OcrEngine:
+    """OCR 引擎：版面 + OCR 一次推理，行级置信度分级与降级处理。
+
+    fast=True 使用轻量模型（约 2-3 倍速，准确率略降）。
+    """
+
+    def __init__(self, fast=False, intra_threads=None):
+        from layout_analyzer import LayoutAnalyzer
+        self.fast = fast
+        self.analyzer = LayoutAnalyzer(fast=fast, intra_threads=intra_threads)
 
     @staticmethod
     def _enhance(crop):
@@ -84,7 +87,7 @@ class OcrEngine:
 
         force_rotations: 指定尝试的旋转角度（块级抢救传 (90, 270)）。
         临时文件名带页码 + 线程 id，防止多线程并行时互相覆盖。
-        注意：_get_line_ocr 返回的是 PaddleOCR 经典管线，
+        注意：抢救管线返回的是 PaddleOCR 经典结果结构，
         rec_texts/rec_scores 直接位于 result[0].json['res'] 下
         （曾误用 ['overall_ocr_res'] 键导致整条抢救路径静默失效）。
         """
@@ -111,7 +114,7 @@ class OcrEngine:
                 rotated = crop.rotate(deg, expand=True) if deg else crop
                 self._enhance(rotated).save(path)
                 try:
-                    result = self._get_line_ocr().predict(path)
+                    result = _retry_ocr(path)
                     o = result[0].json['res']
                     texts, scores = o.get('rec_texts') or [], o.get('rec_scores')
                     if texts and scores is not None:
@@ -150,7 +153,7 @@ class OcrEngine:
                 path = os.path.join(out_dir, tmp)
                 self._enhance(crop.rotate(deg, expand=True)).save(path)
                 try:
-                    result = self._get_line_ocr().predict(path)
+                    result = _retry_ocr(path)
                     o = result[0].json['res']
                     texts = o.get('rec_texts') or []
                     scores = [float(s) for s in (o.get('rec_scores') or [])]
