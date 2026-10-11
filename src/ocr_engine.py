@@ -31,33 +31,78 @@ _VERTICAL_RATIO = 1.8
 # 参与文本提取的版面类别
 _TEXT_CATEGORIES = {'text', 'title', 'span_title', 'side', 'caption_of'}
 
-# 全进程共享的抢救管线（server 模型约 1.5GB，各线程共享一份 + 锁串行，
-# 避免多线程各建一套把内存挤爆——实测 4 线程各建一套 ≈ 8GB 直接卡死）
-_shared_line_ocr = None
-_shared_line_ocr_lock = threading.Lock()
+# 全进程共享的抢救管线（共享一份 + 锁串行，避免多线程各建一套把内存
+# 挤爆——实测 4 线程各建一套 ≈ 8GB 直接卡死）。
+# 三档管线：
+# - v6 tiny 纯识别（行级抢救主力）：0.16s/张，快；
+# - v6 tiny 检测+识别（块级抢救）：需重新分行；
+# - server 纯识别（边界分接力）：v6 tiny 给出 0.45-0.75 边界分时
+#   用大模型确认，只跑少量行，速度代价小、准确率接近 server 全程。
+_shared_rec = None
+_shared_recdet = None
+_shared_server_rec = None
+_rec_lock = threading.Lock()
+_recdet_lock = threading.Lock()
+_server_rec_lock = threading.Lock()
 
 
-def _retry_ocr(path):
-    """在共享锁内用质量级管线识别一张图，返回 predict 结果列表。"""
-    global _shared_line_ocr
-    with _shared_line_ocr_lock:
-        if _shared_line_ocr is None:
-            from paddleocr import PaddleOCR
-            _shared_line_ocr = PaddleOCR(
-                text_detection_model_name='PP-OCRv5_server_det',
-                text_recognition_model_name='PP-OCRv5_server_rec',
-                use_doc_orientation_classify=False,
-                use_doc_unwarping=False,
-                use_textline_orientation=False,
-                # 关键：默认"最小边=736"会把 44px 高的小截图放大 ~17 倍
-                # （1100x44 -> 1100x18385），单数组 300MB，多线程必爆内存。
-                # 改为"最大边=960"，小图保持原尺寸。
-                text_det_limit_side_len=960,
-                text_det_limit_type='max',
-                text_recognition_batch_size=8,
-                engine='onnxruntime',
-            )
-        return _shared_line_ocr.predict(path)
+def _build_pipeline(det, server=False):
+    from paddleocr import PaddleOCR
+    if server:
+        rec = 'PP-OCRv5_server_rec'
+        det_name = None
+    else:
+        rec = 'PP-OCRv6_tiny_rec'
+        det_name = 'PP-OCRv6_tiny_det' if det else None
+    return PaddleOCR(
+        text_detection_model_name=det_name,
+        text_recognition_model_name=rec,
+        use_doc_orientation_classify=False,
+        use_doc_unwarping=False,
+        use_textline_orientation=False,
+        text_det_limit_side_len=960,
+        text_det_limit_type='max',
+        text_recognition_batch_size=16,
+        engine='onnxruntime',
+    )
+
+
+def _retry_ocr_batch(paths, det=False, chunk=16):
+    """在共享锁内批量识别多张图，返回与 paths 对齐的结果 dict 列表。
+
+    det=False：纯识别（行级抢救用，快）；det=True：检测+识别（块级用）。
+    """
+    global _shared_rec, _shared_recdet
+    lock = _recdet_lock if det else _rec_lock
+    out = []
+    with lock:
+        if det:
+            if _shared_recdet is None:
+                _shared_recdet = _build_pipeline(det=True)
+            pipe = _shared_recdet
+        else:
+            if _shared_rec is None:
+                _shared_rec = _build_pipeline(det=False)
+            pipe = _shared_rec
+        for i in range(0, len(paths), chunk):
+            batch = paths[i:i + chunk]
+            res = pipe.predict(batch)
+            out.extend(r.json['res'] for r in res)
+    return out
+
+
+def _server_rec_batch(paths, chunk=16):
+    """server 大模型纯识别（边界分接力用），共享一份。"""
+    global _shared_server_rec
+    out = []
+    with _server_rec_lock:
+        if _shared_server_rec is None:
+            _shared_server_rec = _build_pipeline(det=False, server=True)
+        for i in range(0, len(paths), chunk):
+            batch = paths[i:i + chunk]
+            res = _shared_server_rec.predict(batch)
+            out.extend(r.json['res'] for r in res)
+    return out
 
 
 class OcrEngine:
@@ -81,98 +126,142 @@ class OcrEngine:
         crop = ImageOps.autocontrast(crop, cutoff=2)
         return ImageEnhance.Contrast(crop).enhance(1.3)
 
-    def _re_recognize(self, img, bbox, out_dir, stem, counter,
-                      page_label='', force_rotations=None):
-        """对低分/竖排行做旋转重识别，返回 (text, score) 或 None。
+    def _crop(self, img, bbox):
+        """bbox 外扩裁剪，返回 PIL Image 或 None。"""
+        pad = CROP_PAD * 2
+        x0, y0, x1, y1 = [int(v) for v in bbox]
+        x0, y0 = max(0, x0 - pad), max(0, y0 - pad)
+        x1, y1 = min(img.width, x1 + pad), min(img.height, y1 + pad)
+        if x1 - x0 < 8 or y1 - y0 < 8:
+            return None
+        return img.crop((x0, y0, x1, y1))
 
-        force_rotations: 指定尝试的旋转角度（块级抢救传 (90, 270)）。
-        临时文件名带页码 + 线程 id，防止多线程并行时互相覆盖。
-        注意：抢救管线返回的是 PaddleOCR 经典结果结构，
-        rec_texts/rec_scores 直接位于 result[0].json['res'] 下
-        （曾误用 ['overall_ocr_res'] 键导致整条抢救路径静默失效）。
+    def _batch_retry_lines(self, img, candidates, out_dir, stem, counter,
+                           page_label):
+        """行级批量抢救：候选行（竖排或低分）的裁剪变体一次性打包，
+        只拿一次共享锁批量识别，比逐张排队快数倍。
+
+        candidates: [(ln, vertical), ...]，就地更新 ln 的 text/score。
         """
         import threading
-        try:
-            pad = CROP_PAD * 2
-            x0, y0, x1, y1 = [int(v) for v in bbox]
-            x0, y0 = max(0, x0 - pad), max(0, y0 - pad)
-            x1, y1 = min(img.width, x1 + pad), min(img.height, y1 + pad)
-            if x1 - x0 < 8 or y1 - y0 < 8:
-                return None
-            crop = img.crop((x0, y0, x1, y1))
-            best = None
-            w, h = crop.size
-            rotations = (force_rotations
-                         if force_rotations is not None
-                         else ((90, 270) if h > w * _VERTICAL_RATIO else (0,)))
-            tid = threading.get_ident()
-            for deg in rotations:
-                tmp = (f'{stem}_{page_label}_{counter[0]:03d}'
-                       f'_t{tid}_rot{deg}.png')
-                counter[0] += 1
+        tid = threading.get_ident()
+        temp_counter = [0]  # 临时文件独立计数，不占复核截图号
+        tasks = []
+        for ln, vertical in candidates:
+            ln['retried'] = True
+            crop = self._crop(img, ln['bbox'])
+            if crop is None:
+                continue
+            for deg in ((90, 270) if vertical else (0,)):
+                tmp = (f'{stem}_{page_label}_{temp_counter[0]:03d}'
+                       f'_t{tid}_r{deg}.png')
+                temp_counter[0] += 1
                 path = os.path.join(out_dir, tmp)
                 rotated = crop.rotate(deg, expand=True) if deg else crop
                 self._enhance(rotated).save(path)
-                try:
-                    result = _retry_ocr(path)
-                    o = result[0].json['res']
-                    texts, scores = o.get('rec_texts') or [], o.get('rec_scores')
-                    if texts and scores is not None:
-                        i = max(range(len(texts)),
-                                key=lambda k: scores[k])
-                        if best is None or scores[i] > best[1]:
-                            best = (texts[i], float(scores[i]))
-                finally:
-                    if os.path.isfile(path):
-                        os.remove(path)
-            return best
-        except Exception:
-            return None
+                tasks.append((ln, deg, path))
+        if not tasks:
+            return
+        try:
+            results = _retry_ocr_batch([t[2] for t in tasks])  # 行级：纯识别
+            for (ln, deg, path), res in zip(tasks, results):
+                texts = res.get('rec_texts') or []
+                scores = [float(s) for s in (res.get('rec_scores') or [])]
+                if texts:
+                    i = max(range(len(texts)), key=lambda k: scores[k])
+                    if scores[i] > ln['score']:
+                        ln['text'], ln['score'] = texts[i], scores[i]
+                        ln['rotated'] = (deg != 0)
+            # 边界分接力：tiny 给 0.45-0.75 的行，用 server 大模型确认
+            # （只跑少量边界行，速度代价小，准确率接近 server 全程）
+            esc_tasks = []
+            for ln, _vertical in candidates:
+                if 0.45 <= ln['score'] < 0.75:
+                    crop = self._crop(img, ln['bbox'])
+                    if crop is None:
+                        continue
+                    tmp = (f'{stem}_{page_label}_{temp_counter[0]:03d}'
+                           f'_t{tid}_esc.png')
+                    temp_counter[0] += 1
+                    path = os.path.join(out_dir, tmp)
+                    self._enhance(crop).save(path)
+                    esc_tasks.append((ln, path))
+            if esc_tasks:
+                esc_res = _server_rec_batch([t[1] for t in esc_tasks])
+                for (ln, path), res in zip(esc_tasks, esc_res):
+                    texts = res.get('rec_texts') or []
+                    scores = [float(s) for s in (res.get('rec_scores') or [])]
+                    if texts and scores[0] > ln['score']:
+                        ln['text'], ln['score'] = texts[0], scores[0]
+                        ln['escalated'] = True
+            for _, path in esc_tasks:
+                if os.path.isfile(path):
+                    os.remove(path)
+        finally:
+            for _, _, path in tasks:
+                if os.path.isfile(path):
+                    os.remove(path)
 
-    def _rescue_block(self, img, bbox, out_dir, stem, counter, page_label):
-        """块级旋转抢救：无 OCR 行的文字样貌块（多为竖排文字，检测模型
-        找不到框），旋转 ±90° 后整块转正识别。返回按阅读顺序的
-        [(text, score), ...] 或 None。旋转 270° 的块文字自下而上，
-        需倒序还原行序。
+    def _batch_rescue_blocks(self, img, blocks, out_dir, stem, counter,
+                             page_label):
+        """块级批量抢救：无 OCR 行的文字样貌块（多为竖排文字，检测模型
+        找不到框），旋转 ±90° 整块转正批量识别。成功（平均分 >=
+        CONF_DOUBT）就把行注入块内；失败标记 rescue_failed。
+        旋转 270° 的块文字自下而上，行序需倒置。
         """
         import threading
-        try:
-            pad = CROP_PAD * 2
-            x0, y0, x1, y1 = [int(v) for v in bbox]
-            x0, y0 = max(0, x0 - pad), max(0, y0 - pad)
-            x1, y1 = min(img.width, x1 + pad), min(img.height, y1 + pad)
-            if x1 - x0 < 8 or y1 - y0 < 8:
-                return None
-            crop = img.crop((x0, y0, x1, y1))
-            tid = threading.get_ident()
-            best = None
+        tid = threading.get_ident()
+        temp_counter = [0]  # 临时文件独立计数，不占复核截图号
+        tasks = []
+        for b in blocks:
+            crop = self._crop(img, b['bbox'])
+            if crop is None:
+                b['rescue_failed'] = True
+                continue
             for deg in (90, 270):
-                tmp = (f'{stem}_{page_label}_{counter[0]:03d}'
+                tmp = (f'{stem}_{page_label}_{temp_counter[0]:03d}'
                        f'_t{tid}_blk{deg}.png')
-                counter[0] += 1
+                temp_counter[0] += 1
                 path = os.path.join(out_dir, tmp)
                 self._enhance(crop.rotate(deg, expand=True)).save(path)
-                try:
-                    result = _retry_ocr(path)
-                    o = result[0].json['res']
-                    texts = o.get('rec_texts') or []
-                    scores = [float(s) for s in (o.get('rec_scores') or [])]
-                    if texts:
-                        avg = sum(scores) / len(scores)
-                        if best is None or avg > best[3]:
-                            best = (texts, scores, deg, avg)
-                finally:
-                    if os.path.isfile(path):
-                        os.remove(path)
-            if best is None:
-                return None
-            texts, scores, deg, avg = best
-            if deg == 270:
-                texts = texts[::-1]
-                scores = scores[::-1]
-            return list(zip(texts, scores))
-        except Exception:
-            return None
+                tasks.append((b, deg, path))
+        if not tasks:
+            return
+        try:
+            results = _retry_ocr_batch([t[2] for t in tasks], det=True)  # 块级：需分行
+            best = {}
+            for (b, deg, path), res in zip(tasks, results):
+                texts = res.get('rec_texts') or []
+                scores = [float(s) for s in (res.get('rec_scores') or [])]
+                if not texts:
+                    continue
+                avg = sum(scores) / len(scores)
+                if id(b) not in best or avg > best[id(b)][3]:
+                    best[id(b)] = (texts, scores, deg, avg)
+            for b in blocks:
+                got = best.get(id(b))
+                if got is None:
+                    b['rescue_failed'] = True
+                    continue
+                texts, scores, deg, avg = got
+                if avg < CONF_DOUBT:
+                    b['rescue_failed'] = True
+                    continue
+                if deg == 270:
+                    texts = texts[::-1]
+                    scores = scores[::-1]
+                for text, score in zip(texts, scores):
+                    if not text.strip():
+                        continue
+                    b['lines'].append({
+                        'text': text, 'score': score,
+                        'tier': 'ok' if score >= CONF_HIGH else 'doubtful',
+                        'bbox': list(b['bbox']),
+                        'rescued_block': True})
+        finally:
+            for _, _, path in tasks:
+                if os.path.isfile(path):
+                    os.remove(path)
 
     def process(self, img_path, out_dir, page_label=None):
         """处理单页图像。
@@ -205,6 +294,8 @@ class OcrEngine:
             return None
 
         assigned = set()  # 每行只归一个块，防重叠区块重复输出同一行
+        # ---------- 第一遍：行分配（不做重识别） ----------
+        line_candidates = []
         for b in layout['blocks']:
             b['lines'] = []
             if b['category'] == 'table' or b['category'] in _TEXT_CATEGORIES:
@@ -214,61 +305,47 @@ class OcrEngine:
                      and _center_in(ln['bbox'], b['bbox'])),
                     key=lambda ln: ln['bbox'][1])
                 for ln in block_lines:
-                    s = ln['score']
+                    # 检测框的半截拼接/碎片（空文本）直接丢弃
+                    if not (ln.get('text') or '').strip():
+                        continue
                     h = ln['bbox'][3] - ln['bbox'][1]
                     w = ln['bbox'][2] - ln['bbox'][0]
                     vertical = h > w * _VERTICAL_RATIO
-                    # 重识别仅针对竖排与即将 flagged 的低分行，
-                    # 不给每条 0.6-0.9 的行都跑额外 OCR（性能）
-                    if vertical or s < CONF_DOUBT:
-                        # 竖排/低分：质量模型 + 图像增强重识别，取高分结果
-                        ln['retried'] = True
-                        retry = self._re_recognize(
-                            img, ln['bbox'], review_dir, stem, counter,
-                            page_label=page_label)
-                        if retry and retry[1] > s:
-                            ln['text'], ln['score'] = retry
-                            ln['rotated'] = vertical
-                            s = ln['score']
-                    # 重识别后仍为空 = 检测框的半截拼接/碎片（把相邻两行的
-                    # 下半截+上半截拼成一行），纯噪声，直接丢弃
-                    if not (ln.get('text') or '').strip():
-                        continue
+                    # 重识别仅针对竖排与即将 flagged 的低分行
+                    if vertical or ln['score'] < CONF_DOUBT:
+                        line_candidates.append((ln, vertical))
                     assigned.add(id(ln))
-                    if s >= CONF_HIGH:
-                        ln['tier'] = 'ok'
-                    elif s >= CONF_DOUBT:
-                        ln['tier'] = 'doubtful'
-                    else:
-                        ln['tier'] = 'flagged'
-                        rel = save_crop(ln['bbox'])
-                        ln['crop'] = rel  # 截图失败时为 None，文本仍保留
                     b['lines'].append(ln)
-            b['text'] = _assemble_text(b)
 
-        # 第二遍：处理"整块无 OCR 行"的块（需等所有块的行分配完成，
-        # 才能正确判断块间重叠——行被去重归了别的块的内容不算丢失）
+        # ---------- 第二遍：批量抢救（行级 + 块级，各只拿一次共享锁） ----------
+        if line_candidates:
+            self._batch_retry_lines(img, line_candidates, review_dir,
+                                    stem, counter, page_label)
+        rescue_blocks = []
         for b in layout['blocks']:
             if b['lines'] or b['category'] not in _TEXT_CATEGORIES:
                 continue  # 有行块已处理；表格/图片块不产复核项
             if _overlaps_block_with_lines(b, layout['blocks']):
                 continue  # 与有行块重叠：内容已在他处输出
-            if not _crop_looks_textlike(img, b['bbox']):
-                continue  # 图片/装饰区域静默跳过
-            # 块级旋转抢救：竖排文字检测模型常找不到框，整块转正识别
-            rescued = self._rescue_block(img, b['bbox'], review_dir,
-                                         stem, counter, page_label)
-            if rescued and sum(s for _, s in rescued) / len(rescued) \
-                    >= CONF_DOUBT:
-                for text, score in rescued:
-                    if not text.strip():
-                        continue
-                    b['lines'].append({
-                        'text': text, 'score': score,
-                        'tier': 'ok' if score >= CONF_HIGH else 'doubtful',
-                        'bbox': list(b['bbox']),
-                        'rescued_block': True})
-            if not b['lines']:
+            if _crop_looks_textlike(img, b['bbox']):
+                rescue_blocks.append(b)
+        if rescue_blocks:
+            self._batch_rescue_blocks(img, rescue_blocks, review_dir,
+                                      stem, counter, page_label)
+
+        # ---------- 第三遍：分级 + 截图 + 文本 ----------
+        for b in layout['blocks']:
+            for ln in b['lines']:
+                s = ln['score']
+                if s >= CONF_HIGH:
+                    ln['tier'] = 'ok'
+                elif s >= CONF_DOUBT:
+                    ln['tier'] = 'doubtful'
+                else:
+                    ln['tier'] = 'flagged'
+                    rel = save_crop(ln['bbox'])
+                    ln['crop'] = rel  # 截图失败时为 None，文本仍保留
+            if b.get('rescue_failed'):
                 rel = save_crop(b['bbox'])
                 b['review_block'] = rel
             b['text'] = _assemble_text(b)
