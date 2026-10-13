@@ -168,10 +168,19 @@ class OcrEngine:
                 texts = res.get('rec_texts') or []
                 scores = [float(s) for s in (res.get('rec_scores') or [])]
                 if texts:
-                    i = max(range(len(texts)), key=lambda k: scores[k])
-                    if scores[i] > ln['score']:
-                        ln['text'], ln['score'] = texts[i], scores[i]
-                        ln['rotated'] = (deg != 0)
+                    if len(texts) > 1:
+                        # 检测把多行并成一个框：抢救管线把行拆开了，
+                        # 多行文本合并回填（比只取一行完整）
+                        avg = sum(scores) / len(scores)
+                        if avg > ln['score']:
+                            ln['text'] = '\n'.join(texts)
+                            ln['score'] = avg
+                            ln['rotated'] = (deg != 0)
+                    else:
+                        i = max(range(len(texts)), key=lambda k: scores[k])
+                        if scores[i] > ln['score']:
+                            ln['text'], ln['score'] = texts[i], scores[i]
+                            ln['rotated'] = (deg != 0)
             # 边界分接力：tiny 给 0.45-0.75 的行，用 server 大模型确认
             # （只跑少量边界行，速度代价小，准确率接近 server 全程）
             esc_tasks = []
@@ -204,10 +213,12 @@ class OcrEngine:
 
     def _batch_rescue_blocks(self, img, blocks, out_dir, stem, counter,
                              page_label):
-        """块级批量抢救：无 OCR 行的文字样貌块（多为竖排文字，检测模型
-        找不到框），旋转 ±90° 整块转正批量识别。成功（平均分 >=
-        CONF_DOUBT）就把行注入块内；失败标记 rescue_failed。
-        旋转 270° 的块文字自下而上，行序需倒置。
+        """块级批量抢救：无 OCR 行的文字样貌块（竖排文字或检测漏检的
+        横排块），尝试 0°/90°/270° 三个朝向整块批量识别。成功（平均分
+        >= CONF_DOUBT）就把行注入块内；失败标记 rescue_failed。
+        270° 的块文字自下而上，行序需倒置。（曾只试 ±90°：横排块被
+        强行转 90° 读出垃圾——"why have you forsaken me?" 0.25 分进复核
+        的根因。）
         """
         import threading
         tid = threading.get_ident()
@@ -218,12 +229,15 @@ class OcrEngine:
             if crop is None:
                 b['rescue_failed'] = True
                 continue
-            for deg in (90, 270):
+            for deg in (0, 90, 270):
                 tmp = (f'{stem}_{page_label}_{temp_counter[0]:03d}'
                        f'_t{tid}_blk{deg}.png')
                 temp_counter[0] += 1
                 path = os.path.join(out_dir, tmp)
-                self._enhance(crop.rotate(deg, expand=True)).save(path)
+                if deg == 0:
+                    self._enhance(crop).save(path)
+                else:
+                    self._enhance(crop.rotate(deg, expand=True)).save(path)
                 tasks.append((b, deg, path))
         if not tasks:
             return
@@ -310,6 +324,8 @@ class OcrEngine:
                         continue
                     h = ln['bbox'][3] - ln['bbox'][1]
                     w = ln['bbox'][2] - ln['bbox'][0]
+                    if w < 8 or h < 8:
+                        continue  # 7x7 这类退化噪声框丢弃
                     vertical = h > w * _VERTICAL_RATIO
                     # 重识别仅针对竖排与即将 flagged 的低分行
                     if vertical or ln['score'] < CONF_DOUBT:
