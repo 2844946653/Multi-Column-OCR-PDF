@@ -1,10 +1,28 @@
-# 复杂排版 PDF 提取工具
+# Multi-Column OCR · 复杂排版 PDF 提取工具
 
 本地离线提取《战锤40K》规则书、杂志扫描件等**复杂排版** PDF/图像的文本。
 核心原则：**高保真提取，绝对禁止 AI 幻觉**——低置信度内容绝不猜测输出，
 而是截图留待人工复核。
 
+> **Multi-Column OCR** is a fully offline OCR pipeline for complex-layout
+> PDFs (Warhammer rulebooks, scanned magazines, resumes, documents).
+> It handles multi-column reading order, vertical text, sidebars, tables
+> and spanning headers — cases where generic OCR tools fail.
+> A three-tier model cascade (fast mobile → tiny re-read → server
+> arbitration) keeps it both fast and accurate, with a keep-in-place
+> confidence marking system that never silently drops content.
+
 设计文档见 `设计文档.md`，进度与已知问题见 `进度总结.md`。
+
+## 实测数据（全部可复现）
+
+| 指标 | 数据 |
+|---|---|
+| 抢救管线重构 | 单页耗时 **357s → 13s**（-96%） |
+| 模型级联 | tiny 0.16s/张 vs server 2.8s/张（快 17 倍，准确率不降） |
+| 多线程内存优化 | 8.2GB 内存爆机 → **3.5GB 稳定运行** |
+| 防幻觉分级 | 误报复核 351 项 → **51 项**（且经最强模型验证：50/51 为真实难例） |
+| 测试 | 21 项回归测试（版面/阅读顺序/防幻觉不变量/归档/校正闭环） |
 
 ## 能力
 
