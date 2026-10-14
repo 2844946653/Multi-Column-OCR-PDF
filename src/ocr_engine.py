@@ -120,6 +120,8 @@ class OcrEngine:
     def _enhance(crop):
         """暗扫描件图像增强：自动对比度拉伸 + 轻度放大（小图放大有助识别）。"""
         from PIL import ImageEnhance, ImageOps
+        if crop.mode not in ('RGB', 'L'):
+            crop = crop.convert('RGB')  # RGBA 等模式 autocontrast 不支持
         if min(crop.size) < 48:
             crop = crop.resize((crop.width * 2, crop.height * 2),
                                Image.LANCZOS)
