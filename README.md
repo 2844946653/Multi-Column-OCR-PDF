@@ -1,77 +1,63 @@
-# Multi-Column OCR · 复杂排版 PDF 提取工具
+# Multi-Column OCR
 
-本地离线提取《战锤40K》规则书、杂志扫描件等**复杂排版** PDF/图像的文本。
-核心原则：**高保真提取，绝对禁止 AI 幻觉**——低置信度内容绝不猜测输出，
-而是截图留待人工复核。
+面向复杂排版 PDF 与扫描件的本地 OCR 文本提取工具，基于 [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) 构建。
 
-> **Multi-Column OCR** is a fully offline OCR pipeline for complex-layout
-> PDFs (Warhammer rulebooks, scanned magazines, resumes, documents).
-> It handles multi-column reading order, vertical text, sidebars, tables
-> and spanning headers — cases where generic OCR tools fail.
-> A three-tier model cascade (fast mobile → tiny re-read → server
-> arbitration) keeps it both fast and accurate, with a keep-in-place
-> confidence marking system that never silently drops content.
+Multi-Column OCR extracts text from PDFs and page images whose layout defeats
+generic OCR tools: multi-column articles, vertical text, sidebars, tables and
+full-width headers. It runs entirely offline.
 
-设计文档见 `设计文档.md`，进度与已知问题见 `进度总结.md`。
+## 项目定位
 
-## 实测数据（全部可复现）
+该工具用于解决的具体问题是**复杂排版文档的文本提取**。常见的 OCR 工具处理
+规则书、杂志这类版面时，多栏内容会左右串行、竖排文字无法识别、低置信度
+文本要么被猜出来要么被丢弃。
 
-| 指标 | 数据 |
-|---|---|
-| 抢救管线重构 | 单页耗时 **357s → 13s**（-96%） |
-| 模型级联 | tiny 0.16s/张 vs server 2.8s/张（快 17 倍，准确率不降） |
-| 多线程内存优化 | 8.2GB 内存爆机 → **3.5GB 稳定运行** |
-| 防幻觉分级 | 误报复核 351 项 → **51 项**（且经最强模型验证：50/51 为真实难例） |
-| 测试 | 21 项回归测试（版面/阅读顺序/防幻觉不变量/归档/校正闭环） |
+本项目对此类问题处理如下：
+
+- **多栏阅读顺序**：版面分析按栏排序，先读完整栏再读下一栏
+- **竖排文字**：旋转重识别，侧栏竖排、书脊字可以正常提取
+- **置信度分级**：极易错误识别的低置信度文本（通常为漫画字、手写花体这类浮夸文本）保留在正文中并就地标记，①不会静默丢弃，
+  ②不会猜测输出；低置信度文本截图进入人工复核区交由用户处理
+- **本地离线**：全部推理在本机完成，运行时无网络请求
+
+项目不包含模型训练能力，也不是通用 OCR 引擎。表格内容以文本形式输出，
+表格结构化（Markdown 表格）在计划中。
 
 ## 能力
 
-| 场景 | 处理方式 |
-|---|---|
-| 数字版 PDF（有文本层） | 直接提取文本层，100% 准确，不跑 OCR |
-| 扫描件/纯图片 PDF | 300 DPI 渲染 → 版面分析 → OCR → 置信度分级 |
-| 多栏排版 | 版面分析按栏排序阅读顺序，绝不左右串行 |
-| 表格 | v1：区域识别 + 内容平文本保留（结构化 Markdown 输出属二期） |
-| 花体/哥特体/漫画气泡 | 检测失败区域整块截图进人工复核，不猜 |
-| 低置信度文本 | 保留式标记：≥0.90 直出；0.60-0.90 标 `{?原文?}`；<0.60 原文保留并标 `{!原文!}`（截图进校对清单），正文绝不断流 |
+| 输入 | 处理方式                                                           |
+|---|----------------------------------------------------------------|
+| 数字版 PDF（含文本层） | 直接提取文本层，不运行 OCR                                                |
+| 扫描件 / 纯图片 PDF | 渲染后经版面分析与 OCR 提取                                               |
+| 多栏排版 | 按栏排序阅读顺序，不左右串行                                                 |
+| 竖排 / 旋转文字 | 自动旋转重识别                                                        |
+| 低置信度文本 | 保留并标记：≥0.90 直接输出；0.60-0.90 标 `{?原文?}`；<0.60 标 `{!原文!}` 并截图进校对清单 |
+| 花体 / 漫画字等 | 检测失败区域整块截图进人工复核，工具不会对其进行猜测输出                                   |
 
 ## 安装
 
-要求 Python 3.10+，Windows/Linux 均可。**无需梯子**，全部走国内直连源：
+需要 Python 3.10+。依赖：
 
 ```bash
 pip install pymupdf paddlepaddle paddleocr "paddlex[ocr]" onnxruntime
 ```
 
-首次运行时自动下载模型权重（版面分析 PP-DocLayout_plus-L + PP-OCRv5 检测/识别，
-共约 1GB，存于用户目录 `~/.paddlex/`），之后**完全离线**运行。
+首次运行自动下载模型权重（存放于用户目录 `~/.paddlex/`），之后完全离线。
 
-> 注意：PaddlePaddle 3.3.1 在部分 Windows 机器上的原生推理有 bug
-> （oneDNN PIR 报错/动态图段错误），本项目已固定使用 `engine='onnxruntime'`
-> 绕行，无需额外配置。
+注意：PaddlePaddle 3.3.1 在部分 Windows 机器上原生推理有已知问题
+（oneDNN PIR 报错或段错误），本项目固定使用 `engine='onnxruntime'` 绕开。
 
 ## 使用
 
-**桌面界面（推荐）**：
+**桌面界面**：
 
 ```bash
-pip install pywebview   # 若安装慢可加 -i https://pypi.tuna.tsinghua.edu.cn/simple
-python src/app.py       # 弹出桌面窗口（Windows 用系统自带 WebView2）
+pip install pywebview
+python src/app.py
 ```
 
-界面三个页面：
-- **提取**：多选 PDF 文件（或直接拖 PDF 进窗口）→ 一键提取 → 实时进度
-  （模型加载/第几本书/逐页 OCR）；多个 PDF 逐个处理，每本书输出到独立的
-  子文件夹，互不合并。支持**页码范围**（1 起始闭区间，留空=全部）、
-  **快速/质量模式**（快速=轻量模型，单页数秒）、
-  **线程数 1-8**（多线程并行 OCR，默认 4，每线程一份模型）、
-  **断点续跑**（中断后重跑自动跳过已完成页）、
-  **纯图页自动跳过**（像素统计毫秒级判定，不跑模型）
-- 渲染默认 200 DPI（平衡速度/体积），中间 PNG **用完即删**，
-  输出只留文本、复核截图与报告
-- **结果**：浏览每本书的 extracted_text.md 与处理统计
-- **人工复核**：待复核截图一张张显示，输入正确文本 → 保存校正 → 导出
-  corrected_text.md（占位符自动替换为校正文本；未校正的占位符保留）
+界面提供三个页面：提取（多选/拖拽 PDF、页码范围、断点续跑）、结果浏览、
+人工复核（逐张查看低置信度截图并回填校正，导出校正版全文）。
 
 **命令行**：
 
@@ -79,45 +65,64 @@ python src/app.py       # 弹出桌面窗口（Windows 用系统自带 WebView2�
 python src/run.py <输入文件夹> [输出文件夹]
 ```
 
-输入文件夹放 PDF（可多个），输出结构：
+输出结构：
 
 ```
 output/<PDF名>/
 ├── probe_report.json      逐页分类报告（文本层/OCR）
-├── text_layer/pNNN.txt    数字版页面文本（直取）
-├── render/pNNN.png        扫描页 200 DPI 渲染（中间产物，用完即删）
-├── ocr_text/pNNN.txt      版面+OCR+置信度分级后的文本
-├── needs_human_review/    低置信度/花体区域的截图
-├── extracted_text.md      整本书文本（按页码拼接）
-└── report.json            处理统计 + 每个待复核区域的页码/坐标/类别/置信度
+├── text_layer/pNNN.txt    数字版页面文本
+├── ocr_text/pNNN.txt      扫描页提取文本
+├── needs_human_review/    低置信度/花体区域截图
+├── extracted_text.md      整本书文本
+└── report.json            处理统计与复核清单
 ```
+
+## 性能
+
+以下数据在本机实测（i7-12700H，CPU 推理，Windows 11）：
+
+| 指标 | 数据 |
+|---|---|
+| 单页耗时 | 357s → 13s（抢救管线重构后，快速模式） |
+| 模型级联 | tiny 重识别 0.16s/张，server 2.8s/张；边界分才用大模型 |
+| 内存占用 | 多线程并行优化后约 3.5GB（4 线程） |
+| 复核误报 | 351 项 → 51 项（剩余项经最强模型验证，50/51 为真实难例） |
+
+## 工程细节
+
+- **输入兼容性**：支持 RGB、灰度、RGBA（透明通道）PNG、JPEG、WebP 及
+  扩展名与实际格式不符的图片；透明通道与异常格式在预处理阶段统一归一化
+- **多线程推理**：每个工作线程持有独立模型实例，低分行抢救管线全进程共享
+  一份（4 线程运行时内存约 3.5GB；若各线程各自加载大模型，约 8GB）
+- **断点续跑**：中断后重新运行自动跳过已完成页面；同名但来源不同的 PDF
+  按文件指纹分目录输出，互不覆盖
+- **置信度抢救**：低分文本行由三档模型级联重识别（快速模型初筛 → tiny
+  小模型重读 → 边界分由大模型仲裁），减少"可识别却被判定为不可识别"的情况
 
 ## 测试
 
 ```bash
-python tests/test_step1.py   # 文本层探测+渲染（秒级）
-python tests/test_step2.py   # 版面分析（每页1-3分钟，CPU整页OCR）
-python tests/test_step3.py   # OCR+防幻觉不变量
-python tests/test_step4.py   # 表格分支 v1
-python tests/test_step5.py   # 输出归档（秒级，合成fixture）
+python tests/test_step1.py   # 文本层探测与渲染
+python tests/test_step2.py   # 版面分析与阅读顺序
+python tests/test_step3.py   # OCR 与置信度分级不变量
+python tests/test_step4.py   # 表格区域内容提取
+python tests/test_step5.py   # 输出归档
+python tests/test_gui.py     # 校正回填闭环
 ```
 
-样张测试集在 `testset/`（26 条样本，自包含，不依赖源盘），
-由 `testset/build_testset.py` 生成，`testset/make_scan_subset.py` 生成扫描件子集。
+测试集说明见 `testset/README.md`。
 
-## 已知限制（如实记录）
+## 已知限制
 
-1. **表格结构化输出属二期**：PP-Structure 表格模型（SLANet）的 ONNX 包在官方源
-   不可用（404），本机 paddle 原生推理又有 bug；网格方案 `src/table_extractor.py`
-   已实现但需视觉调参。当前表格内容以平文本完整输出，不丢不猜。
-2. **线框表格检测器在装饰边框密集的扫描页有碎片级误报**（整页级已过滤）。
-3. **置信度阈值（0.90/0.60）为初始值**，需按真实样张校准（见进度总结）。
-4. 单页推理数秒至十余秒（CPU，快速模式；含低分行抢救重识别），156 页杂志约 15-20 分钟。
-5. 扫描件本身分辨率过低（<150 DPI）时 OCR 质量受限——问题在源，不在工具。
+- 识别链路本身虽然可兼容常见图片格式（PNG/JPEG 等）直接作为输入，
+  但不作为程序主要处理方向，测试不多，运行结果请注意甄别
+- 表格结构化输出（Markdown 表格）尚未完成，当前以文本形式输出表格内容
+- 置信度阈值（0.90/0.60）为初始值，未在更大样本上校准
+- 线框表格检测器在装饰边框密集的扫描页上可能有碎片级误报
+- 源文件分辨率过低（低于约 150 DPI）时识别质量受限
 
-## 二期规划
+## 许可证
 
-- 结构化表格（数字版用文本层词坐标重建网格；扫描版调通图像网格方案）
-- 置信度阈值校准
-- 轻量化：一键安装脚本；剥离 paddle 运行时直连 ONNX（依赖仅剩 onnxruntime）
-- 接入翻译管线（mars_trilogy）：提取文本 → chunker → 本地 Ollama 翻译
+MIT License，见 [LICENSE](LICENSE)。
+
+本项目使用 PaddleOCR（Apache-2.0）等开源组件，各组件遵循其自身许可证。
