@@ -18,6 +18,21 @@ _STATE_IDLE = {'running': False, 'stage': 'idle', 'message': '就绪',
                'done': 0, 'total': 1, 'error': None}
 
 
+def _detect_default_output_dir():
+    """默认输出目录 = 桌面上的总文件夹。
+
+    桌面路径探测兼容：普通桌面 / OneDrive 重定向 / 中文系统"桌面"，
+    都不存在则退回用户主目录。
+    """
+    home = os.path.expanduser('~')
+    for c in (os.path.join(home, 'Desktop'),
+              os.path.join(home, 'OneDrive', 'Desktop'),
+              os.path.join(home, '桌面')):
+        if os.path.isdir(c):
+            return os.path.join(c, 'Multi-Column-OCR输出')
+    return os.path.join(home, 'Multi-Column-OCR输出')
+
+
 def _expand_inputs(input_paths):
     """把输入列表展开为 PDF 文件路径列表：文件直接保留，文件夹取其中全部 PDF。"""
     pdfs = []
@@ -44,11 +59,15 @@ class GuiApi:
         self.state = dict(_STATE_IDLE)
         self._thread = None
         self.default_input_dir = os.path.expanduser('~')
-        self.default_output_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), '..', 'output')
+        # 默认输出到桌面上的总文件夹（用户好找，且不会每本书撒一个文件夹）
+        self.default_output_dir = _detect_default_output_dir()
 
     def set_window(self, window):
         self._window = window
+
+    def get_default_output_dir(self):
+        """前端启动时调用，把真实默认路径显示在输出栏。"""
+        return self.default_output_dir
 
     def _resolve_dir(self, output_dir):
         """前端传空字符串表示"默认输出目录"——空目录会被 isdir 短路，
@@ -135,7 +154,8 @@ class GuiApi:
                                     workers=max(1, workers),
                                     resume=not force)
             self.state.update(running=False, stage='idle', done=1, total=1,
-                              message=f'完成：{len(pdfs)} 个 PDF 已处理')
+                              message=f'完成：{len(pdfs)} 个 PDF 已处理，'
+                                      f'输出目录：{output_dir}')
         except Exception as e:  # 界面要能看到错误
             self.state.update(running=False, stage='idle',
                               message='出错', error=f'{type(e).__name__}: {e}')

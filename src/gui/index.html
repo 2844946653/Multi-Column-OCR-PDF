@@ -2,12 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>战锤 PDF 提取工具</title>
+<title>Multi-Column OCR·复杂排版PDF提取工具</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
-  <h1>⚙ 战锤 PDF 提取工具</h1>
+  <h1>⚙ 文本提取器</h1>
   <nav>
     <button class="tab active" data-tab="extract">提取</button>
     <button class="tab" data-tab="books">结果</button>
@@ -26,7 +26,7 @@
         <button id="btn-clear-files">清空</button>
       </div>
       <div id="file-list" class="file-list">
-        <div class="drop-hint">也可以把 PDF 文件直接拖进这个窗口</div>
+        <div class="drop-hint">文件可拖动到此</div>
       </div>
       <h2>页码范围（可选）</h2>
       <div class="row">
@@ -36,12 +36,12 @@
       </div>
       <h2>输出文件夹</h2>
       <div class="row">
-        <input id="output-dir" readonly placeholder="输出目录（默认 ./output）">
+        <input id="output-dir" readonly placeholder="输出目录">
         <button id="btn-pick-output">浏览…</button>
       </div>
       <div class="row">
-        <label><input type="radio" name="speed" value="fast" checked> 快速模式（约 2-3 倍速，准确率略降）</label>
-        <label><input type="radio" name="speed" value="quality"> 质量模式（慢但准）</label>
+        <label><input type="radio" name="speed" value="fast" checked> 快速模式</label>
+        <label><input type="radio" name="speed" value="quality"> 质量模式</label>
         <label>线程数
           <select id="workers">
             <option value="1">1</option>
@@ -67,9 +67,10 @@
       </div>
       <div id="extract-error" class="error" hidden></div>
       <p class="hint">
-        可多选，多个 PDF 会逐个处理，每本书输出到独立的子文件夹（互不合并）。
-        数字版 PDF（有文本层）直接提取 100% 准确文本；扫描件走版面分析 + OCR。
-        低置信度/花体内容绝不猜测，截图留待「人工复核」页处理。
+        可一次上传多个文件，多个 PDF 会逐个处理，每个文件将输出到独立子文件夹<br>
+        快速模式每页识别耗时约3~4秒 <br>
+        花体内容识别器将跳过，请往「人工复核」页查看<br>
+	数字版 PDF 提取准确率 100%！
       </p>
     </div>
   </section>

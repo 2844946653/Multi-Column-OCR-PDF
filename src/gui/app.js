@@ -1,4 +1,4 @@
-/* 战锤 PDF 提取工具 - 前端逻辑（pywebview js_api 桥接） */
+/* Multi-Column OCR - 前端逻辑（pywebview js_api 桥接） */
 let API = null;
 let pollTimer = null;
 let currentBook = null;
@@ -62,7 +62,10 @@ function init() {
     if (files.length) addFiles(files);
   });
 
-  $('output-dir').value = '（默认）';
+  // 显示真实默认输出路径（不再是"（默认）"谜语）
+  API.get_default_output_dir().then(p => {
+    if (!$('output-dir').value) $('output-dir').value = p;
+  });
   // 渲染内联拖放脚本在页面加载早期入队的文件（若有）
   if (inputFiles.length) renderFileList();
 }
@@ -106,7 +109,7 @@ function renderFileList() {
 async function startExtract() {
   if (!inputFiles.length) { showError('请先选择 PDF 文件或文件夹'); return; }
   let output = $('output-dir').value.trim();
-  if (output === '（默认）') output = '';
+  // 留空 = 用后端默认（桌面 Multi-Column-OCR输出）
   const from = $('page-from').value ? Number($('page-from').value) : null;
   const to = $('page-to').value ? Number($('page-to').value) : null;
   const fast = document.querySelector('input[name="speed"]:checked').value === 'fast';

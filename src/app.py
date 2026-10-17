@@ -2,7 +2,7 @@
 """桌面 GUI 入口。
 
 用法: python src/app.py
-依赖 pywebview（Windows 使用系统自带 WebView2，无需额外安装）。
+依赖 pywebview（Windows 使用系统自带 WebView2）。
 """
 import json
 import os
@@ -17,7 +17,7 @@ def _show_error(msg):
     try:
         import ctypes
         ctypes.windll.user32.MessageBoxW(
-            0, f'启动失败：\n\n{msg}', '战锤 PDF 提取工具', 0x10)
+            0, f'启动失败：\n\n{msg}', 'Multi-Column OCR·复杂排版PDF提取工具', 0x10)
     except Exception:
         print(msg)
 
@@ -32,7 +32,7 @@ def main():
                         'gui', 'index.html')
 
     window = webview.create_window(
-        '战锤 PDF 提取工具', html, js_api=api,
+        'Multi-Column OCR·复杂排版PDF提取工具', html, js_api=api,
         width=1280, height=840, min_size=(1024, 700))
     api.set_window(window)
 
