@@ -6,8 +6,13 @@ import pymupdf
 import numpy as np
 from PIL import Image
 
-BASE = r'D:\Claude Code Project\pdf_ocr\testset'
-Z = r'Z:\战锤'
+# 测试集目录：相对本脚本，跨机器可移植
+BASE = os.path.dirname(os.path.abspath(__file__))
+# 源书库：优先 --source-dir 参数，其次环境变量 WARHAMMER_LIB，
+# 最后回退到本机默认路径（仅开发者本机有意义）
+Z = (sys.argv[sys.argv.index('--source-dir') + 1]
+     if '--source-dir' in sys.argv
+     else os.environ.get('WARHAMMER_LIB', r'Z:\战锤'))
 os.makedirs(BASE, exist_ok=True)
 for sub in ['samples/01_digital_story', 'samples/02_scan', 'samples/03_tables',
             'samples/04_magazine', 'samples/05_image_input', 'sources', 'gt']:

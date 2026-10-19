@@ -4,9 +4,8 @@ verify*/
 flag_test/
 bench_*/
 smoke_*/
-# 大体积可再生文件（可用 build_testset.py / make_scan_subset.py 重建）
-testset/samples/
-testset/sources/
+# 测试集样张已压缩入库（灰度 1000px），完整 300DPI 版可用
+# build_testset.py --source-dir <书库> 重建（仅开发者需要）
 # 缓存与临时文件
 __pycache__/
 *.pyc

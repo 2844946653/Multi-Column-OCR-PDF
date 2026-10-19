@@ -2,6 +2,14 @@
 
 供「复杂排版 PDF 提取工具」各里程碑回归测试使用。设计文档见上级目录 `设计文档.md`。
 
+> 仓库内的样张为**压缩版**（灰度 1000px，约 12MB）——足够跑通全部回归测试。
+> 如需完整 300DPI 样张（约 95MB），用你自己的扫描书库重建：
+> ```bash
+> python build_testset.py --source-dir <你的书库目录>   # 或设置环境变量 WARHAMMER_LIB
+> python make_scan_subset.py --source-dir <你的书库目录>
+> ```
+> 源书库需包含 design 文档中列出的各源 PDF（瓦什托尔、阿巴顿剧情、圣血天使圣典、WD487 等）。
+
 ## 组成（26 条样本，由 build_testset.py 生成）
 
 | 目录 | 来源 | 内容 | 测什么 |

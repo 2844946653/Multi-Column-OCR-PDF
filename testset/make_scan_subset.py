@@ -11,7 +11,9 @@ import sys
 import pymupdf
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-Z = r'Z:\战锤'
+Z = (sys.argv[sys.argv.index('--source-dir') + 1]
+     if '--source-dir' in sys.argv
+     else os.environ.get('WARHAMMER_LIB', r'Z:\战锤'))
 
 manifest = json.load(open(os.path.join(BASE, 'manifest.json'), encoding='utf-8'))
 scan_entries = [e for e in manifest['entries'] if e['path'].startswith('samples/02_scan/')]

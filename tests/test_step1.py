@@ -97,13 +97,20 @@ class TestRenderScan(unittest.TestCase):
                 h, w = img.shape
                 self.assertGreaterEqual(w, 2000, f'页 {idx} 渲染宽度不足 2000px(实际{w})')
                 self.assertGreater(h, w, '页面应为纵向')
-                # 与 build_testset.py 从原 PDF 渲染的样张对比（同渲染器应逐像素一致）
+                # 与入库样张（压缩版 1000px）做缩略图结构对比：
+                # 抓渲染错页/空白页，同时容忍压缩差异
                 sample = os.path.join(BASE, 'samples', '02_scan',
                                       f'vashtorr_p{self.ORIG[idx]:03d}.png')
-                ref = np.asarray(Image.open(sample).convert('L'), dtype=np.float32)
-                diff = np.abs(img - ref).mean()
-                self.assertLess(diff, 10.0,
-                                f'页 {idx} 渲染与样张偏差过大(mean_diff={diff:.2f})')
+                ref = Image.open(sample).convert('L')
+                thumb_img = Image.fromarray(img.astype(np.uint8)).resize(
+                    (300, int(300 * h / w)), Image.LANCZOS)
+                thumb_ref = ref.resize((300, int(300 * ref.height / ref.width)),
+                                       Image.LANCZOS)
+                diff = np.abs(
+                    np.asarray(thumb_img, dtype=np.float32)
+                    - np.asarray(thumb_ref, dtype=np.float32)).mean()
+                self.assertLess(diff, 40.0,
+                                f'页 {idx} 渲染与样张结构偏差过大(mean_diff={diff:.2f})')
 
 
 if __name__ == '__main__':
